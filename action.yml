@@ -220,11 +220,10 @@ runs:
           gh issue list \
             --repo "$GITHUB_REPOSITORY" \
             --state open \
-            --limit 100 \
-            --json body,url \
-          | jq -r --arg marker "$marker" \
-              '.[] | select((.body // "") | contains($marker)) | .url' \
-          | head -n 1
+            --search "$marker_hash in:body" \
+            --limit 1 \
+            --json url \
+            --jq '.[0].url // empty'
         )"
 
         if [[ -n "$existing_url" ]]; then
