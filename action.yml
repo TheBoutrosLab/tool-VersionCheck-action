@@ -165,9 +165,12 @@ runs:
         VERSIONCHECK_MESSAGE="$(jq -r '.message // empty' "$result_path")"
         VERSIONCHECK_UPSTREAM_URL="$(jq -r '.upstream_url // empty' "$result_path")"
 
-        if [[ "$VERSIONCHECK_EXIT_CODE" == '2' || -n "$VERSIONCHECK_MESSAGE" ]]; then
+        if [[ "$VERSIONCHECK_EXIT_CODE" == '2' ]]; then
           echo "VersionCheck failed: ${VERSIONCHECK_MESSAGE:-unknown error}" >&2
           exit 1
+        fi
+        if [[ -n "$VERSIONCHECK_MESSAGE" ]]; then
+          echo "VersionCheck message: $VERSIONCHECK_MESSAGE"
         fi
         if [[ -z "$VERSIONCHECK_STATUS" || -z "$VERSIONCHECK_LATEST_VERSION" ]]; then
           echo 'VersionCheck did not report a status and latest version' >&2
