@@ -1,20 +1,16 @@
-# template-base
+# VersionCheck GitHub Action
 
-[![GitHub release](https://img.shields.io/github/v/release/TheBoutrosLab/template-base)](https://github.com/TheBoutrosLab/template-base/actions/workflows/prepare-release.yaml)
+[![GitHub release](https://img.shields.io/github/v/release/TheBoutrosLab/tool-VersionCheck-action)](https://github.com/TheBoutrosLab/tool-VersionCheck-action/actions/workflows/prepare-release.yaml)
 
-Template Repository for the Boutros Lab general repos. Describe a simple overview of use/purpose here.
-
-## Description
-
-An in-depth paragraph about your project and overview of use.
+Run [VersionCheck](https://github.com/TheBoutrosLab/tool-version-check) in GitHub Actions workflows to check and report the latest available versions of software tools.
 
 ## License
 
-Author: Name1, Name2
+Author: Yash Patel
 
-[This project] is licensed under the GNU General Public License version 2. See the file LICENSE.md for the terms of the GNU GPL license.
+tool-VersionCheck-action is licensed under the GNU General Public License version 2. See the file LICENSE for the terms of the GNU GPL license.
 
-<one line to give the project/program's name and a brief idea of what it does.>
+tool-VersionCheck-action provides a GitHub Actions interface for VersionCheck.
 
 Copyright (C) 2026 Sanford Burnham Prebys Medical Discovery Institute ("Boutros Lab")
 
