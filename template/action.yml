@@ -1,0 +1,58 @@
+---
+name: VersionCheck container implementation
+
+description: Run tool-version-check in its published container
+
+inputs:
+  source:
+    required: true
+  package:
+    required: true
+  current-version:
+    required: true
+  version-pattern:
+    required: false
+  include-prereleases:
+    required: true
+  channels:
+    required: false
+  subdirs:
+    required: false
+  versioncheck-token:
+    required: false
+
+outputs:
+  exit-code:
+    description: VersionCheck process exit code
+    value: ${{ steps.versioncheck.outputs.exit-code }}
+  status:
+    description: VersionCheck result status
+    value: ${{ steps.versioncheck.outputs.status }}
+  latest-version:
+    description: Latest version reported by VersionCheck
+    value: ${{ steps.versioncheck.outputs.latest-version }}
+  message:
+    description: VersionCheck error message
+    value: ${{ steps.versioncheck.outputs.message }}
+  upstream-url:
+    description: URL associated with the latest upstream version
+    value: ${{ steps.versioncheck.outputs.upstream-url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run VersionCheck
+      id: versioncheck
+      uses: docker://ghcr.io/theboutroslab/versioncheck:DOCKER_IMAGE_TAG
+      env:
+        VERSIONCHECK_SOURCE: ${{ inputs.source }}
+        VERSIONCHECK_PACKAGE: ${{ inputs.package }}
+        VERSIONCHECK_CURRENT_VERSION: ${{ inputs.current-version }}
+        VERSIONCHECK_VERSION_PATTERN: ${{ inputs.version-pattern }}
+        VERSIONCHECK_INCLUDE_PRERELEASES: ${{ inputs.include-prereleases }}
+        VERSIONCHECK_CHANNELS: ${{ inputs.channels }}
+        VERSIONCHECK_SUBDIRS: ${{ inputs.subdirs }}
+        GITHUB_TOKEN: ${{ inputs.versioncheck-token }}
+      with:
+        entrypoint: /bin/bash
+        args: /github/workspace/.git/run-versioncheck.sh

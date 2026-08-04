@@ -1,0 +1,255 @@
+---
+name: Check for new tool versions
+
+description: Check the latest tool version and open an issue when an update is available
+
+inputs:
+  package:
+    description: GitHub owner/repository or Conda package to check
+    required: true
+  source:
+    description: Version source; supported values are github and conda
+    default: github
+    required: false
+  tag-pattern:
+    description: >-
+      Bash regular expression used to select release tags and extract the
+      current version
+    default: '^v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?)$'
+    required: false
+  version-pattern:
+    description: >-
+      Optional Python regular expression used by VersionCheck to extract
+      upstream versions
+    required: false
+  include-prereleases:
+    description: Include prerelease versions when finding the latest upstream version
+    default: 'false'
+    required: false
+  channels:
+    description: Comma- or newline-separated Conda channels
+    required: false
+  subdirs:
+    description: Comma- or newline-separated Conda platforms/subdirectories
+    required: false
+  docker-tag:
+    description: tool-version-check container tag
+    default: 1.0.2
+    required: false
+  github-token:
+    description: GitHub token used only to create issues in the caller repository
+    required: false
+  versioncheck-token:
+    description: Optional read-only GitHub token used only for upstream version queries
+    required: false
+  issue-labels:
+    description: >-
+      Comma- or newline-separated labels to add to a new issue; labels must
+      already exist
+    required: false
+
+outputs:
+  current-tag:
+    description: Latest caller tag matching tag-pattern
+    value: ${{ steps.current-version.outputs.current-tag }}
+  current-version:
+    description: Version extracted from current-tag
+    value: ${{ steps.current-version.outputs.current-version }}
+  latest-version:
+    description: Latest version reported by VersionCheck
+    value: ${{ steps.result.outputs.latest-version }}
+  update-available:
+    description: Whether a newer version is available
+    value: ${{ steps.result.outputs.update-available }}
+  issue-url:
+    description: URL of the new or existing update issue
+    value: ${{ steps.open-issue.outputs.issue-url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository and tags
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Find current version
+      id: current-version
+      shell: bash
+      env:
+        TAG_PATTERN: ${{ inputs.tag-pattern }}
+      run: |
+        current_tag=''
+        current_version=''
+
+        if [[ '' =~ $TAG_PATTERN ]]; then
+          :
+        else
+          regex_status=$?
+          if [[ "$regex_status" == '2' ]]; then
+            echo "Invalid Bash regular expression '$TAG_PATTERN'" >&2
+            exit 1
+          fi
+        fi
+
+        while IFS= read -r tag; do
+          if [[ "$tag" =~ $TAG_PATTERN ]]; then
+            current_tag="$tag"
+            current_version="${BASH_REMATCH[1]:-${BASH_REMATCH[0]}}"
+            break
+          fi
+        done < <(git tag --sort=-version:refname)
+
+        if [[ -z "$current_tag" || -z "$current_version" ]]; then
+          echo "No Git tag matched tag-pattern '$TAG_PATTERN'" >&2
+          exit 1
+        fi
+
+        echo "current-tag=$current_tag" >> "$GITHUB_OUTPUT"
+        echo "current-version=$current_version" >> "$GITHUB_OUTPUT"
+
+    # Composite actions do not support expressions in a docker:// image name.
+    # Generate a nested action so docker-tag can remain configurable.
+    - name: Configure VersionCheck container step
+      shell: bash
+      env:
+        DOCKER_IMAGE_TAG: ${{ inputs.docker-tag }}
+      run: |
+        if [[ ! "$DOCKER_IMAGE_TAG" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+          echo "Invalid tool-version-check container tag '$DOCKER_IMAGE_TAG'" >&2
+          exit 1
+        fi
+
+        sed "s/DOCKER_IMAGE_TAG/$DOCKER_IMAGE_TAG/g" \
+          '${{ github.action_path }}/template/action.yml' \
+          > "$GITHUB_WORKSPACE/.git/action.yml"
+        cp '${{ github.action_path }}/template/run-versioncheck.sh' \
+          "$GITHUB_WORKSPACE/.git/run-versioncheck.sh"
+
+    - name: Run VersionCheck container
+      id: versioncheck
+      uses: ./.git
+      with:
+        source: ${{ inputs.source }}
+        package: ${{ inputs.package }}
+        current-version: ${{ steps.current-version.outputs.current-version }}
+        version-pattern: ${{ inputs.version-pattern }}
+        include-prereleases: ${{ inputs.include-prereleases }}
+        channels: ${{ inputs.channels }}
+        subdirs: ${{ inputs.subdirs }}
+        versioncheck-token: >-
+          ${{ inputs.source == 'github' && inputs.versioncheck-token || '' }}
+
+    - name: Interpret VersionCheck result
+      id: result
+      shell: bash
+      env:
+        VERSIONCHECK_EXIT_CODE: ${{ steps.versioncheck.outputs.exit-code }}
+        VERSIONCHECK_STATUS: ${{ steps.versioncheck.outputs.status }}
+        VERSIONCHECK_LATEST_VERSION: ${{ steps.versioncheck.outputs.latest-version }}
+        VERSIONCHECK_MESSAGE: ${{ steps.versioncheck.outputs.message }}
+        PACKAGE: ${{ inputs.package }}
+        CURRENT_VERSION: ${{ steps.current-version.outputs.current-version }}
+      run: |
+        if [[ "$VERSIONCHECK_EXIT_CODE" == '2' || -n "$VERSIONCHECK_MESSAGE" ]]; then
+          echo "VersionCheck failed: ${VERSIONCHECK_MESSAGE:-unknown error}" >&2
+          exit 1
+        fi
+        if [[ -z "$VERSIONCHECK_STATUS" || -z "$VERSIONCHECK_LATEST_VERSION" ]]; then
+          echo 'VersionCheck did not report a status and latest version' >&2
+          exit 1
+        fi
+
+        update_available='false'
+        if [[ "$VERSIONCHECK_STATUS" == 'outdated' ]]; then
+          if [[ "$VERSIONCHECK_EXIT_CODE" != '1' ]]; then
+            echo "VersionCheck reported outdated with exit code $VERSIONCHECK_EXIT_CODE" >&2
+            exit 1
+          fi
+          update_available='true'
+        elif [[ "$VERSIONCHECK_EXIT_CODE" != '0' ]]; then
+          echo "Unexpected VersionCheck exit code $VERSIONCHECK_EXIT_CODE" >&2
+          exit 1
+        fi
+
+        echo "latest-version=$VERSIONCHECK_LATEST_VERSION" >> "$GITHUB_OUTPUT"
+        echo "update-available=$update_available" >> "$GITHUB_OUTPUT"
+        echo "VersionCheck result: $PACKAGE is $VERSIONCHECK_STATUS" \
+          "(current $CURRENT_VERSION, latest $VERSIONCHECK_LATEST_VERSION)"
+
+    - name: Open update issue
+      id: open-issue
+      if: steps.result.outputs.update-available == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token || github.token }}
+        ISSUE_LABELS: ${{ inputs.issue-labels }}
+        PACKAGE: ${{ inputs.package }}
+        SOURCE: ${{ inputs.source }}
+        CURRENT_TAG: ${{ steps.current-version.outputs.current-tag }}
+        CURRENT_VERSION: ${{ steps.current-version.outputs.current-version }}
+        LATEST_VERSION: ${{ steps.result.outputs.latest-version }}
+        UPSTREAM_URL: ${{ steps.versioncheck.outputs.upstream-url }}
+      run: |
+        marker_hash="$(
+          printf '%s\0%s\0%s' "$SOURCE" "$PACKAGE" "$LATEST_VERSION" \
+          | sha256sum \
+          | cut -d' ' -f1
+        )"
+        marker="<!-- versioncheck-action:$marker_hash -->"
+
+        existing_url="$(
+          gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --limit 100 \
+            --json body,url \
+          | jq -r --arg marker "$marker" \
+              '.[] | select((.body // "") | contains($marker)) | .url' \
+          | head -n 1
+        )"
+
+        if [[ -n "$existing_url" ]]; then
+          echo "An issue for $PACKAGE $LATEST_VERSION is already open: $existing_url"
+          echo "issue-url=$existing_url" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        body="$marker
+        VersionCheck found a newer version of the configured tool.
+
+        - Source: \`$SOURCE\`
+        - Package: \`$PACKAGE\`
+        - Current repository tag: \`$CURRENT_TAG\`
+        - Current version: \`$CURRENT_VERSION\`
+        - Latest available version: \`$LATEST_VERSION\`"
+
+        if [[ -n "$UPSTREAM_URL" ]]; then
+          body="$body
+        - Upstream release: $UPSTREAM_URL"
+        fi
+
+        body="$body
+
+        Please review the upstream release and update this repository as needed."
+
+        label_arguments=()
+        while IFS= read -r label; do
+          label="${label#"${label%%[![:space:]]*}"}"
+          label="${label%"${label##*[![:space:]]}"}"
+          if [[ -n "$label" ]]; then
+            label_arguments+=(--label "$label")
+          fi
+        done < <(printf '%s' "$ISSUE_LABELS" | tr ',' '\n')
+
+        issue_url="$(
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "New $PACKAGE version available: $LATEST_VERSION" \
+            --body "$body" \
+            "${label_arguments[@]}" \
+          | tail -n 1
+        )"
+        echo "Opened update issue: $issue_url"
+        echo "issue-url=$issue_url" >> "$GITHUB_OUTPUT"
