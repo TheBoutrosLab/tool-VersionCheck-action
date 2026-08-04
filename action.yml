@@ -127,6 +127,11 @@ runs:
         cp '${{ github.action_path }}/template/run-versioncheck.sh' \
           "$GITHUB_WORKSPACE/.git/run-versioncheck.sh"
 
+        result_path="$GITHUB_WORKSPACE/.git/versioncheck-result.json"
+        rm -f "$result_path"
+        touch "$result_path"
+        chmod 0666 "$result_path"
+
     - name: Run VersionCheck container
       id: versioncheck
       uses: ./.git
@@ -145,13 +150,21 @@ runs:
       id: result
       shell: bash
       env:
-        VERSIONCHECK_EXIT_CODE: ${{ steps.versioncheck.outputs.exit-code }}
-        VERSIONCHECK_STATUS: ${{ steps.versioncheck.outputs.status }}
-        VERSIONCHECK_LATEST_VERSION: ${{ steps.versioncheck.outputs.latest-version }}
-        VERSIONCHECK_MESSAGE: ${{ steps.versioncheck.outputs.message }}
         PACKAGE: ${{ inputs.package }}
         CURRENT_VERSION: ${{ steps.current-version.outputs.current-version }}
       run: |
+        result_path="$GITHUB_WORKSPACE/.git/versioncheck-result.json"
+        if ! jq -e 'type == "object"' "$result_path" > /dev/null; then
+          echo 'VersionCheck did not write a valid result file' >&2
+          exit 1
+        fi
+
+        VERSIONCHECK_EXIT_CODE="$(jq -r '.exit_code // empty' "$result_path")"
+        VERSIONCHECK_STATUS="$(jq -r '.status // empty' "$result_path")"
+        VERSIONCHECK_LATEST_VERSION="$(jq -r '.latest_version // empty' "$result_path")"
+        VERSIONCHECK_MESSAGE="$(jq -r '.message // empty' "$result_path")"
+        VERSIONCHECK_UPSTREAM_URL="$(jq -r '.upstream_url // empty' "$result_path")"
+
         if [[ "$VERSIONCHECK_EXIT_CODE" == '2' || -n "$VERSIONCHECK_MESSAGE" ]]; then
           echo "VersionCheck failed: ${VERSIONCHECK_MESSAGE:-unknown error}" >&2
           exit 1
@@ -175,6 +188,7 @@ runs:
 
         echo "latest-version=$VERSIONCHECK_LATEST_VERSION" >> "$GITHUB_OUTPUT"
         echo "update-available=$update_available" >> "$GITHUB_OUTPUT"
+        echo "upstream-url=$VERSIONCHECK_UPSTREAM_URL" >> "$GITHUB_OUTPUT"
         echo "VersionCheck result: $PACKAGE is $VERSIONCHECK_STATUS" \
           "(current $CURRENT_VERSION, latest $VERSIONCHECK_LATEST_VERSION)"
 
@@ -190,7 +204,7 @@ runs:
         CURRENT_TAG: ${{ steps.current-version.outputs.current-tag }}
         CURRENT_VERSION: ${{ steps.current-version.outputs.current-version }}
         LATEST_VERSION: ${{ steps.result.outputs.latest-version }}
-        UPSTREAM_URL: ${{ steps.versioncheck.outputs.upstream-url }}
+        UPSTREAM_URL: ${{ steps.result.outputs.upstream-url }}
       run: |
         marker_hash="$(
           printf '%s\0%s\0%s' "$SOURCE" "$PACKAGE" "$LATEST_VERSION" \

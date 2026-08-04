@@ -21,23 +21,6 @@ inputs:
   versioncheck-token:
     required: false
 
-outputs:
-  exit-code:
-    description: VersionCheck process exit code
-    value: ${{ steps.versioncheck.outputs.exit-code }}
-  status:
-    description: VersionCheck result status
-    value: ${{ steps.versioncheck.outputs.status }}
-  latest-version:
-    description: Latest version reported by VersionCheck
-    value: ${{ steps.versioncheck.outputs.latest-version }}
-  message:
-    description: VersionCheck error message
-    value: ${{ steps.versioncheck.outputs.message }}
-  upstream-url:
-    description: URL associated with the latest upstream version
-    value: ${{ steps.versioncheck.outputs.upstream-url }}
-
 runs:
   using: composite
   steps:
@@ -52,6 +35,7 @@ runs:
         VERSIONCHECK_INCLUDE_PRERELEASES: ${{ inputs.include-prereleases }}
         VERSIONCHECK_CHANNELS: ${{ inputs.channels }}
         VERSIONCHECK_SUBDIRS: ${{ inputs.subdirs }}
+        VERSIONCHECK_RESULT_PATH: /github/workspace/.git/versioncheck-result.json
         GITHUB_TOKEN: ${{ inputs.versioncheck-token }}
       with:
         entrypoint: /bin/bash

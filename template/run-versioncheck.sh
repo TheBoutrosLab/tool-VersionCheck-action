@@ -55,10 +55,9 @@ set -e
 
 python3 -c '
 import json
-import secrets
 import sys
 
-report_path, output_path, exit_code = sys.argv[1:]
+report_path, result_path, exit_code = sys.argv[1:]
 
 try:
     with open(report_path, encoding="utf-8") as report_file:
@@ -91,17 +90,15 @@ except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
     upstream_url = ""
 
 values = {
-    "exit-code": exit_code,
+    "exit_code": int(exit_code),
     "status": status,
-    "latest-version": latest_version,
+    "latest_version": latest_version,
     "message": message,
-    "upstream-url": upstream_url,
+    "upstream_url": upstream_url,
 }
-with open(output_path, "a", encoding="utf-8") as output_file:
-    for name, value in values.items():
-        delimiter = f"VERSIONCHECK_{secrets.token_hex(12)}"
-        output_file.write(f"{name}<<{delimiter}\n{value}\n{delimiter}\n")
-' "$report_file" "$GITHUB_OUTPUT" "$exit_code"
+with open(result_path, "w", encoding="utf-8") as result_file:
+    json.dump(values, result_file)
+' "$report_file" "$VERSIONCHECK_RESULT_PATH" "$exit_code"
 
 # The CLI uses 1 to indicate an available update. Preserve all expected exit
 # codes as outputs so the outer composite action can interpret them.
