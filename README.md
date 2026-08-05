@@ -72,8 +72,7 @@ tag names also need custom version extraction. Set `include-prereleases` to
 `true` to include prerelease versions.
 
 The action runs the published `tool-version-check` image as a GitHub Actions
-Docker step. The `docker-tag` input selects the image version and defaults to
-`1.0.2`.
+Docker step. The `docker-tag` input selects the image version with a built-in default tracking releases.
 
 The `github-token` input is used only by the host-side issue step and defaults
 to the workflow's `github.token`. For authenticated upstream GitHub queries,
