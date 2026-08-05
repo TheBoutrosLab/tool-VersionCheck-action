@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- Require callers to check out the repository and tags before running the action
+- Validate that callers use a complete repository checkout with tags at the default path
 
 ---
 
