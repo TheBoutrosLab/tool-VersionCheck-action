@@ -3,36 +3,6 @@
 
 ### Closes #...  <!-- edit if this PR closes an Issue -->
 
-<!-- 
-Admin/maintainer: please edit the 'Pipeline Run Results' or 'Analysis Results' sections as needed for your project repo.  
-Then commit/push the changes so everyone uses this template for future PRs.
-
-For example, if your project is a `pipeline`, then create a 'Pipeline Run Results' section.
-
-If your project is a general data analysis project, then you may want to require an 'Analysis Results' section in order to test
-code from each PR to help prevent creating new bugs.
--->
-
-## Pipeline Run Results
-
-- Case 1
-    - sample:    <!-- e.g. A-mini S2.T-1, A-mini S2.T-n1 -->
-    - test:      <!-- Specific pipeline test case -->
-- Case 2
-    - sample:    <!-- e.g. A-mini S2.T-1, A-mini S2.T-n1 -->
-    - test:      <!-- Specific pipeline test case -->
-
-## Analysis Results
-
-- Case 1
-    - script:    <!-- path/to/script.R -->
-    - command:   <!-- path/to/launch.sh -->
-    - output:    <!-- path/to/output -->
-- Case 2
-    - script:    <!-- path/to/script.R -->
-    - command:   <!-- path/to/launch.sh -->
-    - output:    <!-- path/to/output -->
-
 # Checklist
 <!--- Please read each of the following items and confirm by replacing the [ ] with a [X] --->
 
@@ -49,13 +19,12 @@ code from each PR to help prevent creating new bugs.
 
 - [ ] This PR **does *NOT* contain** other non-plain text files, such as: compressed files, images (*e.g.* `.png`, .`jpeg`), `.pdf`, `.RData`, `.xlsx`, `.doc`, `.ppt`, or other output files.
 
-_&emsp; To automatically exclude such files using a [.gitignore](https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files) file, see [here](https://github.com/TheBoutrosLab/template-base/blob/main/.gitignore) for example._
+_&emsp; To automatically exclude such files using a [.gitignore](https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files) file, see [this repository's example](https://github.com/TheBoutrosLab/tool-VersionCheck-action/blob/main/.gitignore)._
 
-- [ ] I have read the [code review guidelines] and the [code review best practice on GitHub check-list].
+- [ ] I have read the [code review guidelines](https://solid-adventure-l491og6.pages.github.io/latest/code-review-guidelines) and the [code review best practice on GitHub check-list](https://solid-adventure-l491og6.pages.github.io/latest/code-review-best-practices).
 
 - [ ] I have set up or verified the `main` branch protection rule following the [github standards] before opening this pull request.
 
-- [ ] The name of the branch is meaningful and well formatted following the [standards], using [AD_username (or 5 letters of AD if AD is too long)]-[brief_description_of_branch].
-  
-- [ ] I have added the major changes included in this pull request to the `CHANGELOG.md` under the next release version or unreleased, and updated the date.
+- [ ] The name of the branch is meaningful and well formatted following the [standards](https://solid-adventure-l491og6.pages.github.io/latest/code-review-best-practices), using \[AD_username (or 5 letters of AD if AD is too long)]-\[brief_description_of_branch].
 
+- [ ] I have added the major changes included in this pull request to the `CHANGELOG.md` under the next release version or unreleased, and updated the date.
