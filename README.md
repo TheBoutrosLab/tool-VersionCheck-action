@@ -12,8 +12,9 @@ issue for the same package and latest version is reused.
 ## Usage
 
 The workflow must grant `issues: write` permission so the action can create an
-update issue. `contents: read` is required to check out the repository and its
-tags.
+update issue. Check out the repository and all of its tags before running the
+action. Disable persisted checkout credentials because VersionCheck does not
+need authenticated Git access.
 
 ```yaml
 ---
@@ -32,6 +33,12 @@ jobs:
   version-check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
       - uses: TheBoutrosLab/tool-VersionCheck-action@v1
         with:
           source: github
@@ -44,6 +51,12 @@ expression. The first capture group is used as the current version. If the
 expression has no capture group, the whole match is used:
 
 ```yaml
+- uses: actions/checkout@v7
+  with:
+    fetch-depth: 0
+    fetch-tags: true
+    persist-credentials: false
+
 - uses: TheBoutrosLab/tool-VersionCheck-action@v1
   with:
     source: conda
