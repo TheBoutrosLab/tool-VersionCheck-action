@@ -14,7 +14,8 @@ issue for the same package and latest version is reused.
 The workflow must grant `issues: write` permission so the action can create an
 update issue. Check out the repository and all of its tags before running the
 action. Disable persisted checkout credentials because VersionCheck does not
-need authenticated Git access.
+need authenticated Git access. The repository must use the default checkout
+path so its root is `$GITHUB_WORKSPACE`.
 
 ```yaml
 ---
