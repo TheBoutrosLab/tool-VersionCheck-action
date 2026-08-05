@@ -12,8 +12,10 @@ issue for the same package and latest version is reused.
 ## Usage
 
 The workflow must grant `issues: write` permission so the action can create an
-update issue. `contents: read` is required to check out the repository and its
-tags.
+update issue. Check out the repository and all of its tags before running the
+action. Disable persisted checkout credentials because VersionCheck does not
+need authenticated Git access. The repository must use the default checkout
+path so its root is `$GITHUB_WORKSPACE`.
 
 ```yaml
 ---
@@ -32,6 +34,12 @@ jobs:
   version-check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
       - uses: TheBoutrosLab/tool-VersionCheck-action@v1
         with:
           source: github
@@ -44,6 +52,12 @@ expression. The first capture group is used as the current version. If the
 expression has no capture group, the whole match is used:
 
 ```yaml
+- uses: actions/checkout@v7
+  with:
+    fetch-depth: 0
+    fetch-tags: true
+    persist-credentials: false
+
 - uses: TheBoutrosLab/tool-VersionCheck-action@v1
   with:
     source: conda
@@ -59,8 +73,7 @@ tag names also need custom version extraction. Set `include-prereleases` to
 `true` to include prerelease versions.
 
 The action runs the published `tool-version-check` image as a GitHub Actions
-Docker step. The `docker-tag` input selects the image version and defaults to
-`1.0.2`.
+Docker step. The `docker-tag` input selects the image version with a built-in default tracking releases.
 
 The `github-token` input is used only by the host-side issue step and defaults
 to the workflow's `github.token`. For authenticated upstream GitHub queries,

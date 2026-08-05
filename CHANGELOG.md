@@ -8,6 +8,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- Validate that callers use a complete repository checkout with tags at the default path
+
+---
+
+## [1.0.0] - 2026-08-05
+
 ### Added
 
 - Add initial repository for the VersionCheck GitHub Action
