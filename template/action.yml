@@ -18,7 +18,7 @@ inputs:
     required: false
   subdirs:
     required: false
-  versioncheck-token:
+  github-token:
     required: false
 
 runs:
@@ -36,7 +36,7 @@ runs:
         VERSIONCHECK_CHANNELS: ${{ inputs.channels }}
         VERSIONCHECK_SUBDIRS: ${{ inputs.subdirs }}
         VERSIONCHECK_RESULT_PATH: /github/workspace/.git/versioncheck-result.json
-        GITHUB_TOKEN: ${{ inputs.versioncheck-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         entrypoint: /bin/bash
         args: /github/workspace/.git/run-versioncheck.sh
