@@ -34,8 +34,8 @@ jobs:
       - name: Check out VersionCheck action
         uses: actions/checkout@v7
         with:
-          repository: TheBoutrosLab/tool-VersionCheck-action
-          ref: v1
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           token: ${{ secrets.repository_token }}
           path: .versioncheck-action
           persist-credentials: false
@@ -86,8 +86,17 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      - name: Check out VersionCheck action
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          token: ${{ secrets.repository_token }}
+          path: .versioncheck-action
+          persist-credentials: false
+
       - name: Check tool version
-        uses: TheBoutrosLab/tool-VersionCheck-action@v1
+        uses: ./.versioncheck-action
         with:
           repository: ${{ matrix.tool.repository }}
           issue-repository: ${{ matrix.tool.issue-repository }}

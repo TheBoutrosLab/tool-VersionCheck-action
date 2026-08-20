@@ -171,6 +171,11 @@ The `tools-path` input must be a relative path to a tracked, regular file within
 the caller repository. Absolute paths, untracked files, and paths that resolve
 outside the checkout are rejected.
 
+The reusable workflow checks out its parser and single-tool action from the
+exact commit containing the running `wf-check-tools.yml`. Calling the workflow
+by a release tag, branch, or commit therefore uses a consistent implementation
+for every matrix job and workflow rerun.
+
 Each tool entry requires:
 
 - `repository`: repository whose tags represent the current tool version
