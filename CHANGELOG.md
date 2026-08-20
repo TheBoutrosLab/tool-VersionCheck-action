@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add workflow to check for set of tools in single workflow run with matrix jobs
+
 ## [1.1.0] - 2026-08-05
 
 ### Changed
