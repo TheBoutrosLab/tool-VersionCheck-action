@@ -68,6 +68,20 @@ expression has no capture group, the whole match is used:
     issue-labels: dependencies
 ```
 
+Set `issue-repository` to open or reuse the issue in a repository other than
+the repository being checked. Its value must use `owner/repository` format. The
+token passed through `github-token` must be able to read the upstream package
+repository and read and create issues in the issue repository:
+
+```yaml
+- uses: TheBoutrosLab/tool-VersionCheck-action@v1
+  with:
+    source: github
+    package: samtools/samtools
+    issue-repository: TheBoutrosLab/dependency-updates
+    github-token: ${{ secrets.VERSIONCHECK_REPOSITORY_TOKEN }}
+```
+
 The `version-pattern` input is passed to VersionCheck when upstream release or
 tag names also need custom version extraction. Set `include-prereleases` to
 `true` to include prerelease versions.
@@ -75,10 +89,10 @@ tag names also need custom version extraction. Set `include-prereleases` to
 The action runs the published `tool-version-check` image as a GitHub Actions
 Docker step. The `docker-tag` input selects the image version with a built-in default tracking releases.
 
-The `github-token` input is used only by the host-side issue step and defaults
-to the workflow's `github.token`. For authenticated upstream GitHub queries,
-provide a separate read-only token through `versioncheck-token`. No token is
-passed to the VersionCheck container for Conda queries.
+The `github-token` input is used for authenticated upstream GitHub queries and
+by the host-side issue step. It defaults to the workflow's `github.token`; that
+default only supports issues in the caller repository. No token is passed to
+the VersionCheck container for Conda queries.
 
 The action provides the following outputs:
 
@@ -87,6 +101,93 @@ The action provides the following outputs:
 - `latest-version`: latest version reported by VersionCheck
 - `update-available`: `true` when the upstream version is newer
 - `issue-url`: URL of the new or existing update issue, otherwise empty
+
+## Checking multiple repositories
+
+The reusable workflow entrypoint expands a YAML tool inventory into one matrix
+job per tool. Each job checks out the configured repository with its complete
+tag history, runs the single-tool action above, and opens or reuses an issue in
+the configured issue repository. A failure for one tool does not cancel the
+other checks.
+
+Call the workflow from a scheduled workflow in a central automation
+repository:
+
+```yaml
+---
+name: Check organization tool versions
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version-check:
+    uses: TheBoutrosLab/tool-VersionCheck-action/.github/workflows/wf-check-tools.yml@v1
+    with:
+      tools-path: versioncheck-tools.yml
+    secrets:
+      repository_token: ${{ secrets.VERSIONCHECK_REPOSITORY_TOKEN }}
+```
+
+Define the inventory in `versioncheck-tools.yml` in the caller
+repository:
+
+```yaml
+---
+tools:
+  - repository: TheBoutrosLab/tool-samtools
+    issue-repository: TheBoutrosLab/tool-samtools
+    source: github
+    package: samtools/samtools
+
+  - repository: TheBoutrosLab/tool-bcftools
+    issue-repository: TheBoutrosLab/dependency-updates
+    source: conda
+    package: bcftools
+    channels:
+      - bioconda
+      - conda-forge
+    subdirs:
+      - linux-64
+      - noarch
+```
+
+The required `repository_token` secret must have `Contents: read` access to the
+caller repository and every configured `repository`, plus `Issues: read and
+write` access to every `issue-repository`. For GitHub sources, it must also be
+able to read the upstream package repository. A fine-grained personal access
+token can be limited to those repositories and permissions. The token must
+also be authorized for the organization and its internal repositories. The
+workflow uses the same token for checkout, upstream version queries,
+duplicate-issue lookup, and issue creation; it is never included in the tools
+YAML. No token is passed to the VersionCheck container for Conda sources.
+
+The `tools-path` input must be a relative path to a tracked, regular file within
+the caller repository. Absolute paths, untracked files, and paths that resolve
+outside the checkout are rejected.
+
+The reusable workflow checks out its parser and single-tool action from the
+exact commit containing the running `wf-check-tools.yml`. Calling the workflow
+by a release tag, branch, or commit therefore uses a consistent implementation
+for every matrix job and workflow rerun.
+
+Each tool entry requires:
+
+- `repository`: repository whose tags represent the current tool version
+- `issue-repository`: repository where an update issue is opened or reused
+- `package`: GitHub owner/repository or Conda package passed to VersionCheck
+
+Entries may also set any single-tool option: `source`, `tag-pattern`,
+`version-pattern`, `include-prereleases`, `channels`, `subdirs`, `docker-tag`,
+and `issue-labels`. List-valued options accept either a YAML list or the same
+comma- or newline-separated string accepted by the single-tool action. Unknown
+keys and invalid values fail during configuration before tool repositories are
+checked. A top-level YAML list is also accepted in place of the `tools` key.
 
 ## Versioning
 

@@ -4,6 +4,11 @@ name: Check for new tool versions
 description: Check the latest tool version and open an issue when an update is available
 
 inputs:
+  repository:
+    description: >-
+      Repository checked out at the workspace root; defaults to the caller
+      repository
+    required: false
   package:
     description: GitHub owner/repository or Conda package to check
     required: true
@@ -37,10 +42,14 @@ inputs:
     default: 1.1.0
     required: false
   github-token:
-    description: GitHub token used only to create issues in the caller repository
+    description: >-
+      GitHub token used for upstream queries and issues; defaults to the
+      workflow token
     required: false
-  versioncheck-token:
-    description: Optional read-only GitHub token used only for upstream version queries
+  issue-repository:
+    description: >-
+      Repository where update issues are opened, in owner/repository format;
+      defaults to the caller repository
     required: false
   issue-labels:
     description: >-
@@ -174,8 +183,8 @@ runs:
         include-prereleases: ${{ inputs.include-prereleases }}
         channels: ${{ inputs.channels }}
         subdirs: ${{ inputs.subdirs }}
-        versioncheck-token: >-
-          ${{ inputs.source == 'github' && inputs.versioncheck-token || '' }}
+        github-token: >-
+          ${{ inputs.source == 'github' && (inputs.github-token || github.token) || '' }}
 
     - name: Interpret VersionCheck result
       id: result
@@ -233,13 +242,20 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token || github.token }}
         ISSUE_LABELS: ${{ inputs.issue-labels }}
+        ISSUE_REPOSITORY: ${{ inputs.issue-repository || github.repository }}
         PACKAGE: ${{ inputs.package }}
         SOURCE: ${{ inputs.source }}
+        CURRENT_REPOSITORY: ${{ inputs.repository || github.repository }}
         CURRENT_TAG: ${{ steps.current-version.outputs.current-tag }}
         CURRENT_VERSION: ${{ steps.current-version.outputs.current-version }}
         LATEST_VERSION: ${{ steps.result.outputs.latest-version }}
         UPSTREAM_URL: ${{ steps.result.outputs.upstream-url }}
       run: |
+        if [[ ! "$ISSUE_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+          echo "Invalid issue repository '$ISSUE_REPOSITORY'; expected owner/repository" >&2
+          exit 1
+        fi
+
         marker_hash="$(
           printf '%s\0%s\0%s' "$SOURCE" "$PACKAGE" "$LATEST_VERSION" \
           | sha256sum \
@@ -249,7 +265,7 @@ runs:
 
         existing_url="$(
           gh issue list \
-            --repo "$GITHUB_REPOSITORY" \
+            --repo "$ISSUE_REPOSITORY" \
             --state open \
             --search "$marker_hash in:body" \
             --limit 1 \
@@ -272,6 +288,11 @@ runs:
         - Current version: \`$CURRENT_VERSION\`
         - Latest available version: \`$LATEST_VERSION\`"
 
+        if [[ "$CURRENT_REPOSITORY" != "$ISSUE_REPOSITORY" ]]; then
+          body="$body
+        - Repository checked: \`$CURRENT_REPOSITORY\`"
+        fi
+
         if [[ -n "$UPSTREAM_URL" ]]; then
           body="$body
         - Upstream release: $UPSTREAM_URL"
@@ -292,7 +313,7 @@ runs:
 
         issue_url="$(
           gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
+            --repo "$ISSUE_REPOSITORY" \
             --title "New $PACKAGE version available: $LATEST_VERSION" \
             --body "$body" \
             "${label_arguments[@]}" \
