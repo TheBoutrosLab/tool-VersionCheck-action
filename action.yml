@@ -42,15 +42,14 @@ inputs:
     default: 1.1.0
     required: false
   github-token:
-    description: GitHub token used only to create issues in issue-repository
+    description: >-
+      GitHub token used for upstream queries and issues; defaults to the
+      workflow token
     required: false
   issue-repository:
     description: >-
       Repository where update issues are opened, in owner/repository format;
       defaults to the caller repository
-    required: false
-  versioncheck-token:
-    description: Optional read-only GitHub token used only for upstream version queries
     required: false
   issue-labels:
     description: >-
@@ -184,8 +183,8 @@ runs:
         include-prereleases: ${{ inputs.include-prereleases }}
         channels: ${{ inputs.channels }}
         subdirs: ${{ inputs.subdirs }}
-        versioncheck-token: >-
-          ${{ inputs.source == 'github' && inputs.versioncheck-token || '' }}
+        github-token: >-
+          ${{ inputs.source == 'github' && (inputs.github-token || github.token) || '' }}
 
     - name: Interpret VersionCheck result
       id: result
