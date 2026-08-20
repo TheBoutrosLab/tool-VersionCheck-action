@@ -1,0 +1,103 @@
+---
+name: Check multiple tool versions
+
+on:
+  workflow_call:
+    inputs:
+      tools-path:
+        description: Path to the tools YAML file in the caller repository
+        required: true
+        type: string
+    secrets:
+      repository_token:
+        description: >-
+          Token used to check repositories, query GitHub versions, and create
+          update issues
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    name: Validate tools configuration
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Check out caller repository
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.repository_token }}
+          persist-credentials: false
+
+      - name: Check out VersionCheck action
+        uses: actions/checkout@v7
+        with:
+          repository: TheBoutrosLab/tool-VersionCheck-action
+          ref: v1
+          token: ${{ secrets.repository_token }}
+          path: .versioncheck-action
+          persist-credentials: false
+
+      - name: Build tool matrix
+        id: matrix
+        shell: bash
+        env:
+          TOOLS_PATH: ${{ inputs.tools-path }}
+        run: |
+          if [[ -z "$TOOLS_PATH" || "$TOOLS_PATH" == /* ]]; then
+            echo 'tools-path must be a non-empty path relative to the caller repository' >&2
+            exit 1
+          fi
+          if ! git -C "$GITHUB_WORKSPACE" \
+            ls-files --error-unmatch -- "$TOOLS_PATH" > /dev/null 2>&1; then
+            echo "tools-path must identify a tracked caller repository file: '$TOOLS_PATH'" >&2
+            exit 1
+          fi
+
+          tools_file="$(realpath "$GITHUB_WORKSPACE/$TOOLS_PATH")" || {
+            echo "Could not resolve tools-path '$TOOLS_PATH'" >&2
+            exit 1
+          }
+          if [[ "$tools_file" != "$GITHUB_WORKSPACE/"* || ! -f "$tools_file" ]]; then
+            echo "tools-path must identify a file in the caller repository: '$TOOLS_PATH'" >&2
+            exit 1
+          fi
+
+          matrix="$(ruby .versioncheck-action/scripts/parse-tools-yaml.rb < "$tools_file")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  check:
+    name: Check ${{ matrix.tool.package }} for ${{ matrix.tool.repository }}
+    needs: configure
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: ${{ fromJSON(needs.configure.outputs.matrix).include }}
+    steps:
+      - name: Check out tool repository
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ matrix.tool.repository }}
+          token: ${{ secrets.repository_token }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Check tool version
+        uses: TheBoutrosLab/tool-VersionCheck-action@v1
+        with:
+          repository: ${{ matrix.tool.repository }}
+          issue-repository: ${{ matrix.tool.issue-repository }}
+          source: ${{ matrix.tool.source }}
+          package: ${{ matrix.tool.package }}
+          tag-pattern: ${{ matrix.tool.tag-pattern }}
+          version-pattern: ${{ matrix.tool.version-pattern }}
+          include-prereleases: ${{ matrix.tool.include-prereleases }}
+          channels: ${{ matrix.tool.channels }}
+          subdirs: ${{ matrix.tool.subdirs }}
+          docker-tag: ${{ matrix.tool.docker-tag }}
+          github-token: ${{ secrets.repository_token }}
+          issue-labels: ${{ matrix.tool.issue-labels }}
