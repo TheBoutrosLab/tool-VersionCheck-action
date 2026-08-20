@@ -28,7 +28,7 @@ if [[ "$VERSIONCHECK_INCLUDE_PRERELEASES" == 'true' ]]; then
 fi
 
 if [[ "$VERSIONCHECK_SOURCE" == 'conda' ]]; then
-    while IFS= read -r channel; do
+    while IFS= read -r channel || [[ -n "$channel" ]]; do
         channel="${channel#"${channel%%[![:space:]]*}"}"
         channel="${channel%"${channel##*[![:space:]]}"}"
         if [[ -n "$channel" ]]; then
@@ -36,7 +36,7 @@ if [[ "$VERSIONCHECK_SOURCE" == 'conda' ]]; then
         fi
     done < <(printf '%s' "$VERSIONCHECK_CHANNELS" | tr ',' '\n')
 
-    while IFS= read -r subdir; do
+    while IFS= read -r subdir || [[ -n "$subdir" ]]; do
         subdir="${subdir#"${subdir%%[![:space:]]*}"}"
         subdir="${subdir%"${subdir##*[![:space:]]}"}"
         if [[ -n "$subdir" ]]; then
